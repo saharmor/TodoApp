@@ -29,7 +29,8 @@ import { useStorageState } from "../../hooks/useStorageState";
 import { DialogBtn } from "../../styles";
 import { ColorPalette } from "../../theme/themeConfig";
 import type { Category, Task, UUID } from "../../types/user";
-import { getFontColor, showToast } from "../../utils";
+import { getFontColor, showToast, generateUUID } from "../../utils";
+import type { Recurrence } from "../../types/user";
 import {
   NoTasks,
   RingAlarm,
@@ -267,16 +268,59 @@ export const TasksList: React.FC = () => {
   };
 
   const handleMarkSelectedAsDone = () => {
-    setUser((prevUser) => ({
-      ...prevUser,
-      tasks: prevUser.tasks.map((task) => {
+    // helper to calculate next occurrence date
+    const getNextDate = (date: Date, recurrence: Recurrence): Date => {
+      const d = new Date(date);
+      switch (recurrence) {
+        case "daily":
+          d.setDate(d.getDate() + 1);
+          break;
+        case "weekly":
+          d.setDate(d.getDate() + 7);
+          break;
+        case "monthly":
+          d.setMonth(d.getMonth() + 1);
+          break;
+        default:
+      }
+      return d;
+    };
+
+    setUser((prevUser) => {
+      const newTasks: Task[] = [];
+
+      const updatedTasks = prevUser.tasks.map((task) => {
         if (multipleSelectedTasks.includes(task.id)) {
-          // Mark the task as done if selected
+          // Only create next occurrence if task wasn't already done
+          if (
+            !task.done &&
+            task.recurrence &&
+            task.recurrence !== "none"
+          ) {
+            const nextDeadline =
+              task.deadline && getNextDate(task.deadline, task.recurrence);
+            const clonedTask: Task = {
+              ...task,
+              id: generateUUID(),
+              done: false,
+              date: new Date(),
+              deadline: nextDeadline,
+              lastSave: undefined,
+            };
+            newTasks.push(clonedTask);
+          }
+
+          // Mark the original task as done
           return { ...task, done: true, lastSave: new Date() };
         }
         return task;
-      }),
-    }));
+      });
+
+      return {
+        ...prevUser,
+        tasks: [...updatedTasks, ...newTasks],
+      };
+    });
     // Clear the selected task IDs after the operation
     setMultipleSelectedTasks([]);
   };

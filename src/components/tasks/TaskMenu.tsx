@@ -26,7 +26,7 @@ import "react-spring-bottom-sheet/dist/style.css";
 import { TaskIcon, TaskItem } from "..";
 import { UserContext } from "../../contexts/UserContext";
 import { useResponsiveDisplay } from "../../hooks/useResponsiveDisplay";
-import { Task } from "../../types/user";
+import { Task, Recurrence } from "../../types/user";
 import { calculateDateDifference, generateUUID, showToast } from "../../utils";
 import { useTheme } from "@emotion/react";
 import { TaskContext } from "../../contexts/TaskContext";
@@ -67,38 +67,81 @@ export const TaskMenu = () => {
   };
 
   const handleMarkAsDone = () => {
-    // Toggles the "done" property of the selected task
-    if (selectedTaskId) {
-      handleCloseMoreMenu();
-      const updatedTasks = tasks.map((task) => {
-        if (task.id === selectedTaskId) {
-          return { ...task, done: !task.done, lastSave: new Date() };
-        }
-        return task;
-      });
-      setUser((prevUser) => ({
-        ...prevUser,
-        tasks: updatedTasks,
-      }));
+    if (!selectedTaskId) return;
 
-      const allTasksDone = updatedTasks.every((task) => task.done);
-
-      if (allTasksDone) {
-        showToast(
-          <div>
-            <b>All tasks done</b>
-            <br />
-            <span>You've checked off all your todos. Well done!</span>
-          </div>,
-          {
-            icon: (
-              <div style={{ margin: "-6px 4px -6px -6px" }}>
-                <TaskIcon variant="success" scale={0.18} />
-              </div>
-            ),
-          },
-        );
+    // utility to advance a date by recurrence
+    const getNextDate = (date: Date, recurrence: Recurrence): Date => {
+      const d = new Date(date);
+      switch (recurrence) {
+        case "daily":
+          d.setDate(d.getDate() + 1);
+          break;
+        case "weekly":
+          d.setDate(d.getDate() + 7);
+          break;
+        case "monthly":
+          d.setMonth(d.getMonth() + 1);
+          break;
+        default:
       }
+      return d;
+    };
+
+    handleCloseMoreMenu();
+
+    let shouldCreateNext = false;
+    let nextRecurrence: Recurrence | undefined;
+    let nextDeadline: Date | undefined;
+    let originalTaskSnapshot: Task | undefined;
+
+    const toggledTasks = tasks.map((task) => {
+      if (task.id === selectedTaskId) {
+        originalTaskSnapshot = task;
+        const markedDone = !task.done;
+        // capture data BEFORE toggling
+        if (markedDone && task.recurrence && task.recurrence !== "none") {
+          shouldCreateNext = true;
+          nextRecurrence = task.recurrence;
+          if (task.deadline) nextDeadline = getNextDate(task.deadline, task.recurrence);
+        }
+        return { ...task, done: markedDone, lastSave: new Date() };
+      }
+      return task;
+    });
+
+    // if required, clone task for next occurrence
+    let finalTasks = toggledTasks;
+    if (shouldCreateNext && originalTaskSnapshot) {
+      const clonedTask: Task = {
+        ...originalTaskSnapshot,
+        id: generateUUID(),
+        done: false,
+        date: new Date(),
+        deadline: nextDeadline,
+        recurrence: nextRecurrence,
+        lastSave: undefined,
+      };
+      finalTasks = [...toggledTasks, clonedTask];
+    }
+
+    setUser((prev) => ({ ...prev, tasks: finalTasks }));
+
+    const allTasksDone = finalTasks.every((task) => task.done);
+    if (allTasksDone) {
+      showToast(
+        <div>
+          <b>All tasks done</b>
+          <br />
+          <span>You've checked off all your todos. Well done!</span>
+        </div>,
+        {
+          icon: (
+            <div style={{ margin: "-6px 4px -6px -6px" }}>
+              <TaskIcon variant="success" scale={0.18} />
+            </div>
+          ),
+        },
+      );
     }
   };
 

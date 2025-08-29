@@ -15,7 +15,7 @@ import { ColorPicker, CustomDialogTitle, CustomEmojiPicker } from "..";
 import { DESCRIPTION_MAX_LENGTH, TASK_NAME_MAX_LENGTH } from "../../constants";
 import { UserContext } from "../../contexts/UserContext";
 import { DialogBtn } from "../../styles";
-import { Category, Task } from "../../types/user";
+import { Category, Task, Recurrence } from "../../types/user";
 import { formatDate, showToast, timeAgo } from "../../utils";
 import { useTheme } from "@emotion/react";
 import { ColorPalette } from "../../theme/themeConfig";
@@ -83,6 +83,7 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
             emoji: editedTask.emoji || undefined,
             description: editedTask.description || undefined,
             deadline: editedTask.deadline || undefined,
+            recurrence: editedTask.recurrence || undefined,
             category: editedTask.category || undefined,
             lastSave: new Date(),
           };
@@ -241,6 +242,20 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
             },
           }}
         />
+
+        <StyledInput
+          label="Recurrence"
+          name="recurrence"
+          select
+          value={editedTask?.recurrence || ("none" as Recurrence)}
+          onChange={handleInputChange}
+          SelectProps={{ native: true }}
+        >
+          <option value="none">None</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </StyledInput>
 
         {settings.enableCategories !== undefined && settings.enableCategories && (
           <CategorySelect
