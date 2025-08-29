@@ -8,6 +8,7 @@ import {
   InputAdornment,
   TextField,
   TextFieldProps,
+  MenuItem,
   Tooltip,
 } from "@mui/material";
 import { useContext, useEffect, useMemo, useState } from "react";
@@ -33,6 +34,9 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
   const [editedTask, setEditedTask] = useState<Task | undefined>(task);
   const [emoji, setEmoji] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
+  const [recurrenceSelection, setRecurrenceSelection] = useState<string>(
+    task?.recurrence ?? "none",
+  );
 
   const theme = useTheme();
 
@@ -58,6 +62,7 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
   useEffect(() => {
     setEditedTask(task);
     setSelectedCategories(task?.category as Category[]);
+    setRecurrenceSelection(task?.recurrence ?? "none");
   }, [task]);
 
   // Event handler for input changes in the form fields.
@@ -69,6 +74,11 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
       ...(prevTask as Task),
       [name]: value,
     }));
+
+    // keep recurrenceSelection in sync if the input name is 'recurrence'
+    if (name === "recurrence") {
+      setRecurrenceSelection(value);
+    }
   };
   // Event handler for saving the edited task.
   const handleSave = () => {
@@ -84,6 +94,8 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
             description: editedTask.description || undefined,
             deadline: editedTask.deadline || undefined,
             category: editedTask.category || undefined,
+            recurrence: recurrenceSelection === "none" ? undefined : (recurrenceSelection as
+                "daily" | "weekly" | "monthly"),
             lastSave: new Date(),
           };
         }
@@ -200,6 +212,30 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
                 : `${editedTask?.description?.length}/${DESCRIPTION_MAX_LENGTH}`
           }
         />
+        {/* Recurrence selector */}
+        <StyledInput
+          select
+          label="Recurrence"
+          name="recurrence"
+          value={recurrenceSelection}
+          onChange={(
+            e: React.ChangeEvent<HTMLInputElement /* HTMLSelectElement via TextField */>,
+          ) => {
+            const value = e.target.value;
+            setRecurrenceSelection(value);
+            setEditedTask((prevTask) => ({
+              ...(prevTask as Task),
+              recurrence: value === "none" ? undefined : (value as "daily" | "weekly" | "monthly"),
+            }));
+          }}
+          helperText="Choose how often this task repeats"
+        >
+          <MenuItem value="none">None</MenuItem>
+          <MenuItem value="daily">Daily</MenuItem>
+          <MenuItem value="weekly">Weekly</MenuItem>
+          <MenuItem value="monthly">Monthly</MenuItem>
+        </StyledInput>
+
         <StyledInput
           label="Deadline date"
           name="deadline"
